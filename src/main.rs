@@ -1,6 +1,14 @@
 use std::time::Instant;
 use polars::prelude::*;
 
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
+
 #[macro_export]
 macro_rules! logger_elapsed {
     ($timer:expr, $($arg:tt)*) => {
@@ -95,6 +103,9 @@ fn main() {
     let columns_to_correlate: Vec<String> = columns_to_correlate.iter().map(|s| s.to_string()).collect();
     let lf_correlation = correlate_columns(lf.clone(), &columns_to_correlate);
     logger_elapsed!(timer, "Pre-filtered:");
+
+    println!("\n\nLazyFrame explained\n {}", lf_correlation.explain(false).unwrap());
+    println!("\n\nLazyFrame explained optimized\n {}", lf_correlation.explain(true).unwrap());
 
     logger_elapsed!(timer, "Collecting DataFrame from LazyFrame:");
     let df = lf_correlation.collect().unwrap();
