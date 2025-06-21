@@ -27,6 +27,13 @@ pub fn load_lazyframe_from_parquet(
     LazyFrame::scan_parquet(path, args)
 }
 
+pub fn load_lazyframe_from_ipc(
+    path: &str
+) -> Result<LazyFrame, PolarsError> {
+    let args = ScanArgsIpc::default();
+    Ok(LazyFrame::scan_ipc(path, args)?.with_streaming(true))
+}
+
 pub fn correlate_columns(
     lf: LazyFrame,
     columns: &Vec<String>,
@@ -75,12 +82,26 @@ pub fn display_lazyframe(
 }
 
 
-pub fn operation_A(feed_left: LazyFrame, feed_right: LazyFrame) -> LazyFrame {
-    return feed_left
+pub fn operation_a(feed_left: LazyFrame, feed_right: LazyFrame) -> LazyFrame {
+    feed_left
+        .join(
+            feed_right,
+            [col("timestamp"), col("value")],
+
+            [col("timestamp"), col("value")],
+            JoinArgs {
+                how: JoinType::Inner,
+                validation: JoinValidation::ManyToMany,
+                suffix: Some("_right".into()),
+                slice: None,
+                join_nulls: false,
+                coalesce: JoinCoalesce::JoinSpecific
+            }
+        )
 }
 
-pub fn operation_B(feed_left: LazyFrame, feed_right: LazyFrame) -> LazyFrame {
-    return feed_right
+pub fn operation_b(feed_left: LazyFrame, feed_right: LazyFrame) -> LazyFrame {
+    return feed_left
 }
 
 
@@ -88,38 +109,15 @@ fn main() {
     let timer = Instant::now();
 
     logger_elapsed!(timer, "Initializing LazyFrames:");
-    let mut feed_a = load_lazyframe_from_parquet("miriad-5.8M/data/*.parquet").unwrap();
-    let mut feed_b = load_lazyframe_from_parquet("kryptik/data/train*.parquet").unwrap();
-    let mut feed_c = load_lazyframe_from_parquet("svla_so101_pickplace/data/chunk-000/*.parquet").unwrap();
+    let feed_a = load_lazyframe_from_ipc("arrow_data/data_a.arrow").unwrap();
+    let feed_b = load_lazyframe_from_ipc("arrow_data/data_b.arrow_100000000").unwrap();
+    let feed_c = load_lazyframe_from_ipc("arrow_data/data_b.arrow_300000000").unwrap();
     logger_elapsed!(timer, "Initialized LazyFrames:");
 
-    let mut feed_d = operation_A(feed_a, feed_b);
-    let mut feed_e = operation_B(feed_c, feed_d);
+    let feed_d = operation_a(feed_a, feed_b);
+    let feed_e = operation_b(feed_d, feed_c);
 
-
-    /*println!("Duplicate values: {}", _find_duplicate_values_in_column(lf.clone(), "year").collect().unwrap());
-
-    logger_elapsed!(timer, "Pre-filtering:");
-    let column_to_filter_in: &str = "year";
-    let values_to_filter: Vec<f64> = vec![2017.0, 2018.0];
-    lf = lf
-        .filter(
-            col(column_to_filter_in).is_in(lit(Series::new("".into(), values_to_filter)))
-        );
-
-    let columns_to_correlate = ["passage_position", "year", "paper_id"];
-    let columns_to_correlate: Vec<String> = columns_to_correlate.iter().map(|s| s.to_string()).collect();
-    let lf_correlation = correlate_columns(lf.clone(), &columns_to_correlate);
-    logger_elapsed!(timer, "Pre-filtered:");
-
-    logger_elapsed!(timer, "Collecting DataFrame from LazyFrame:");
-    let df = lf_correlation.collect().unwrap();
-    println!("{df}");
-    println!("All columns: {:?}", df.get_column_names());
-    logger_elapsed!(timer, "Collected DataFrame from LazyFrame:");
-
-
-    //println!("Duplicate values: {}", _find_duplicate_values_in_column(lf.clone(), "originh").collect().unwrap());*/
+    display_lazyframe(feed_e).unwrap();
 
     logger_elapsed!(timer, "Elapsed:");
 }
