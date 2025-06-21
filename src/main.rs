@@ -21,10 +21,10 @@ macro_rules! logger_elapsed {
 }
 
 pub fn load_lazyframe_from_parquet(
-
+    path: &str
 ) -> Result<LazyFrame, PolarsError> {
     let args = ScanArgsParquet::default();
-    LazyFrame::scan_parquet("miriad-5.8M/data/*.parquet", args)
+    LazyFrame::scan_parquet(path, args)
 }
 
 pub fn correlate_columns(
@@ -74,14 +74,30 @@ pub fn display_lazyframe(
     Ok(true)
 }
 
+
+pub fn operation_A(feed_left: LazyFrame, feed_right: LazyFrame) -> LazyFrame {
+    return feed_left
+}
+
+pub fn operation_B(feed_left: LazyFrame, feed_right: LazyFrame) -> LazyFrame {
+    return feed_right
+}
+
+
 fn main() {
     let timer = Instant::now();
 
-    logger_elapsed!(timer, "Initializing LazyFrame:");
-    let mut lf = load_lazyframe_from_parquet().unwrap();
-    logger_elapsed!(timer, "Initialized LazyFrame:");
+    logger_elapsed!(timer, "Initializing LazyFrames:");
+    let mut feed_a = load_lazyframe_from_parquet("miriad-5.8M/data/*.parquet").unwrap();
+    let mut feed_b = load_lazyframe_from_parquet("kryptik/data/train*.parquet").unwrap();
+    let mut feed_c = load_lazyframe_from_parquet("svla_so101_pickplace/data/chunk-000/*.parquet").unwrap();
+    logger_elapsed!(timer, "Initialized LazyFrames:");
 
-    println!("Duplicate values: {}", _find_duplicate_values_in_column(lf.clone(), "year").collect().unwrap());
+    let mut feed_d = operation_A(feed_a, feed_b);
+    let mut feed_e = operation_B(feed_c, feed_d);
+
+
+    /*println!("Duplicate values: {}", _find_duplicate_values_in_column(lf.clone(), "year").collect().unwrap());
 
     logger_elapsed!(timer, "Pre-filtering:");
     let column_to_filter_in: &str = "year";
@@ -103,7 +119,7 @@ fn main() {
     logger_elapsed!(timer, "Collected DataFrame from LazyFrame:");
 
 
-    //println!("Duplicate values: {}", _find_duplicate_values_in_column(lf.clone(), "originh").collect().unwrap());
+    //println!("Duplicate values: {}", _find_duplicate_values_in_column(lf.clone(), "originh").collect().unwrap());*/
 
     logger_elapsed!(timer, "Elapsed:");
 }
