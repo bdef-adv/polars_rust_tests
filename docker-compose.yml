@@ -1,0 +1,18 @@
+services:
+  server:
+    build:
+      context: .
+      target: final
+      dockerfile: ${DOCKERFILE:-Dockerfile}
+    container_name: data_processor
+    restart: unless-stopped
+    ports:
+      - 3420:3000
+    tty: true
+    environment:
+      - RUST_LOG=debug
+      - DOCKER_BUILDKIT=1
+    volumes:
+      - .:/code
+      #- ${DATA_FOLDER:-./data}:/data
+

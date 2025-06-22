@@ -2,17 +2,17 @@
     "feeds": {
         "A": {
             "type": "file",
-            "source": "arrow_data/data_a.arrow",
+            "source": "data/arrow_data/data_a.arrow",
             "format": "ipc"
         },
         "B": {
             "type": "file",
-            "source": "arrow_data/data_b.arrow_100000000",
+            "source": "data/arrow_data/data_b.arrow_100000000",
             "format": "ipc"
         },
         "C": {
             "type": "file",
-            "source": "arrow_data/data_b.arrow_300000000",
+            "source": "data/arrow_data/data_b.arrow_300000000",
             "format": "ipc"
         },
         "D": {
