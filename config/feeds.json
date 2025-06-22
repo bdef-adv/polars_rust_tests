@@ -28,7 +28,7 @@
             "operation": "join_timestamp_value"
         },
         "F": {
-            "type": "filter_name",
+            "type": "filter",
             "origin": "E",
             "filters": [
                 {
