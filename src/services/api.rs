@@ -59,16 +59,4 @@ pub async fn display_feed(path: web::Path<String>) -> impl Responder {
                 .body(format!("Error while fetching feed {feed_name}: {err}"))
         }
     }
-
-    /*let feed_a = load_lazyframe_from_ipc("arrow_data/data_a.arrow").unwrap();
-    let feed_b = load_lazyframe_from_ipc("arrow_data/data_b.arrow_100000000").unwrap();
-    let feed_c = load_lazyframe_from_ipc("arrow_data/data_b.arrow_300000000").unwrap();
-    logger_elapsed!(timer, "Initialized LazyFrames:");
-
-    let feed_d = join_timestamp_value(feed_a, feed_b);
-    let feed_e = operation_b(feed_d, feed_c);
-
-    display_lazyframe(feed_e).unwrap();
-
-    logger_elapsed!(timer, "Elapsed:");*/
 }
