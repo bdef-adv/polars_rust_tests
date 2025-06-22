@@ -7,7 +7,7 @@ use crate::logger_elapsed;
 use crate::data::{get_feed,lazyframe_as_str};
 
 
-#[get("/feed/{feed_name}/display")]
+#[get("/feeds/{feed_name}/display")]
 pub async fn display_feed(path: web::Path<String>) -> impl Responder {
     const LOG_HEADER: &str = "services::display_feed";
 

@@ -17,24 +17,30 @@
         },
         "D": {
             "type": "operation",
-            "feeds": ["A", "B"],
+            "feed_left": "A",
+            "feed_right": "B",
             "operation": "join_timestamp_value"
         },
         "E": {
             "type": "operation",
-            "feeds": ["D", "C"],
+            "feed_left": "D",
+            "feed_right": "C",
             "operation": "join_timestamp_value"
         },
         "F": {
-            "type": "operation",
-            "feeds": ["E"],
-            "operation": "filter_value",
-            "parameters": {
-                "column": "value",
-                "filter": "gte",
-                "value": 40000,
-                "type": "int16"
-            }
+            "type": "filter_name",
+            "origin": "E",
+            "filters": [
+                {
+                    "filter_name": "filter_value",
+                    "parameters": {
+                        "column": "value",
+                        "filter": "gte",
+                        "value": 40000,
+                        "type": "int"
+                    }
+                }
+            ]
         }
     }
 }

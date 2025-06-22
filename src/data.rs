@@ -89,99 +89,140 @@ pub fn lazyframe_as_str(
 }
 
 
+fn get_feed_from_filters(
+    origin_feed: LazyFrame,
+    filters: &Vec<Value>,
+) -> Result<LazyFrame, Box<dyn std::error::Error>> {
+    const LOG_HEADER: &str = "data::get_feed_from_filters";
+    println!("{LOG_HEADER} Fetching feed from filters={filters:?}");
+
+    let mut filtered_lf: LazyFrame = origin_feed.clone();
+
+    for _filter in filters.iter() {
+        let filter_obj: &Map<String, Value> = _filter.as_object().unwrap();
+        let filter_name = filter_obj.get("filter_name").expect("filter_name must be given").as_str().unwrap();
+
+        match filter_name {
+            "filter_value" => {
+                let parameters = filter_obj
+                    .get("parameters")
+                    .expect("parameters is expected for operation 'filter_value'")
+                    .as_object()
+                    .expect("parameters must be an object");
+
+                let column: String = parameters.get("column")
+                    .expect("column is expected for filter_value parameters")
+                    .as_str()
+                    .unwrap()
+                    .to_owned();
+
+                let filter: String = parameters.get("filter")
+                    .expect("filter is expected for filter_value parameters")
+                    .as_str()
+                    .unwrap()
+                    .to_owned();
+
+                let value: &Value = parameters.get("value")
+                    .expect("value is expected for filter_value parameters");
+
+                let r#type: String = parameters.get("type")
+                    .expect("type is expected for filter_value parameters")
+                    .as_str()
+                    .unwrap()
+                    .to_owned();
+
+                filtered_lf = filter_value(filtered_lf, &column, &filter, value, &r#type)?
+            },
+            _ => {
+                return Err(Box::new(PolarsError::InvalidOperation(ErrString::new_static("Operation is unknown"))))
+            }
+        }
+    }
+
+    Ok(filtered_lf)
+}
+
+
+fn get_feed_from_file(
+    format: &str,
+    source: &str
+) -> Result<LazyFrame, Box<dyn std::error::Error>> {
+    const LOG_HEADER: &str = "data::get_feed_from_file";
+    println!("{LOG_HEADER} Fetching feed from file with format={format} and source={source}");
+
+    match format {
+        "parquet" => {
+            return Ok(load_lazyframe_from_parquet(source)?)
+        },
+        "ipc" => {
+            return Ok(load_lazyframe_from_ipc(source)?)
+        },
+        _ => {
+            return Err(Box::new(PolarsError::InvalidOperation(ErrString::new_static("Format unrecognized"))))
+        }
+    }
+}
+
+
+fn get_feed_from_operation(
+    feed_left: LazyFrame,
+    feed_right: LazyFrame,
+    operation: &str
+) -> Result<LazyFrame, Box<dyn std::error::Error>> {
+    const LOG_HEADER: &str = "data::get_feed_from_operation";
+    println!("{LOG_HEADER} Fetching feed from operation={operation}");
+
+    match operation {
+        "join_timestamp_value" => {
+            return Ok(join_timestamp_value(feed_left, feed_right))
+        },
+        _ => {
+            return Err(Box::new(PolarsError::InvalidOperation(ErrString::new_static("Operation is unknown"))))
+        }
+    }
+}
+
+
 fn get_feed_from_config(
     feed_name: &String,
     all_feeds: &Map<String, Value>
 ) -> Result<LazyFrame, Box<dyn std::error::Error>> {
+    const LOG_HEADER: &str = "data::get_feed_from_config";
+
     let feed_definition: &Map<String, Value> = all_feeds.get(feed_name).unwrap().as_object().expect("Feed should be an object");
     match feed_definition.get("type").expect("No type defined").as_str().expect("Type is not a string") {
         "file" => {
+            println!("{LOG_HEADER} Fetching feed {feed_name} from file");
             let format = feed_definition.get("format").expect("format expected for type 'file'").as_str().unwrap();
             let source = feed_definition.get("source").expect("source expected for type 'file'").as_str().unwrap();
 
-            match format {
-                "parquet" => {
-                    return Ok(load_lazyframe_from_parquet(source)?)
-                },
-                "ipc" => {
-                    return Ok(load_lazyframe_from_ipc(source)?)
-                },
-                _ => {
-                    return Err(Box::new(PolarsError::InvalidOperation(ErrString::new_static("Format unrecognized"))))
-                }
-            }
+            return get_feed_from_file(format, source);
         },
         "operation" => {
-            let feeds = feed_definition.get("feeds").expect("feeds expected for type 'operation'").as_array().unwrap();
+            println!("{LOG_HEADER} Fetching feed {feed_name} from operation");
             let operation = feed_definition.get("operation").expect("operation expected for type 'operation'").as_str().unwrap();
 
-            if feeds.len() == 2 {
-                let feed_left_name  = feeds.get(0).unwrap().as_str().unwrap().to_string();
-                let feed_right_name = feeds.get(1).unwrap().as_str().unwrap().to_string();
+            let feed_left_name = feed_definition.get("feed_left").expect("feed_left expected for type 'operation'").as_str().unwrap().to_owned();
+            let feed_right_name = feed_definition.get("feed_right").expect("feed_right expected for type 'operation'").as_str().unwrap().to_owned();
 
-                let feed_left = get_feed_from_config(
-                    &feed_left_name,
-                    all_feeds
-                )?;
-                let feed_right = get_feed_from_config(
-                    &feed_right_name,
-                    all_feeds
-                );
+            let feed_left = get_feed_from_config(
+                &feed_left_name,
+                all_feeds
+            )?;
+            let feed_right = get_feed_from_config(
+                &feed_right_name,
+                all_feeds
+            )?;
 
-                match operation {
-                    "join_timestamp_value" => {
-                        return Ok(join_timestamp_value(feed_left, feed_right.unwrap()))
-                    },
-                    _ => {
-                        return Err(Box::new(PolarsError::InvalidOperation(ErrString::new_static("Operation is unknown"))))
-                    }
-                }
-            } else if feeds.len() == 1 {
-                let feed_left_name  = feeds.get(0).unwrap().as_str().unwrap().to_string();
+            return get_feed_from_operation(feed_left, feed_right, operation);
+        },
+        "filter" => {
+            println!("{LOG_HEADER} Fetching feed {feed_name} from filter");
+            let filters = feed_definition.get("filters").expect("filters expected for type 'filter'").as_array().unwrap();
+            let origin = feed_definition.get("origin").expect("origin is expected for type 'filter'").as_str().unwrap().to_owned();
+            let origin_feed = get_feed_from_config(&origin, all_feeds)?;
 
-                let feed_left = get_feed_from_config(
-                    &feed_left_name,
-                    all_feeds
-                )?;
-
-                match operation {
-                    "filter_value" => {
-                        let parameters = feed_definition
-                            .get("parameters")
-                            .expect("parameters is expected for operation 'filter_value'")
-                            .as_object()
-                            .expect("parameters must be an object");
-
-                        let column: String = parameters.get("column")
-                            .expect("column is expected for filter_value parameters")
-                            .as_str()
-                            .unwrap()
-                            .to_owned();
-
-                        let filter: String = parameters.get("filter")
-                            .expect("filter is expected for filter_value parameters")
-                            .as_str()
-                            .unwrap()
-                            .to_owned();
-
-                        let value: &Value = parameters.get("value")
-                            .expect("value is expected for filter_value parameters");
-
-                        let r#type: String = parameters.get("type")
-                            .expect("type is expected for filter_value parameters")
-                            .as_str()
-                            .unwrap()
-                            .to_owned();
-
-                        return Ok(filter_value(feed_left, &column, &filter, value, &r#type)?)
-                    },
-                    _ => {
-                        return Err(Box::new(PolarsError::InvalidOperation(ErrString::new_static("Operation is unknown"))))
-                    }
-                }
-            } else {
-                return Err(Box::new(PolarsError::InvalidOperation(ErrString::new_static("feeds have more than 2 feeds for operation"))))
-            }
+            return get_feed_from_filters(origin_feed, filters);
         },
         _ => {
             return Err(Box::new(PolarsError::InvalidOperation(ErrString::new_static("Err"))))
