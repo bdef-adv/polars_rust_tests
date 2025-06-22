@@ -6,7 +6,7 @@ mod data;
 mod operations;
 mod services;
 
-use services::api::display_feed;
+use services::api::{display_feed,download_feed};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -15,6 +15,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(cors)
             .service(display_feed)
+            .service(download_feed)
     })
     .bind(("0.0.0.0".to_string(), 3000))?
     .run()
