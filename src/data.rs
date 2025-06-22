@@ -225,7 +225,7 @@ fn get_feed_from_config(
             return get_feed_from_filters(origin_feed, filters);
         },
         _ => {
-            return Err(Box::new(PolarsError::InvalidOperation(ErrString::new_static("Err"))))
+            return Err(Box::new(PolarsError::InvalidOperation(ErrString::new_static("Bad operation type"))))
         }
     }
 }
