@@ -1,0 +1,40 @@
+{
+    "feeds": {
+        "A": {
+            "type": "file",
+            "source": "arrow_data/data_a.arrow",
+            "format": "ipc"
+        },
+        "B": {
+            "type": "file",
+            "source": "arrow_data/data_b.arrow_100000000",
+            "format": "ipc"
+        },
+        "C": {
+            "type": "file",
+            "source": "arrow_data/data_b.arrow_300000000",
+            "format": "ipc"
+        },
+        "D": {
+            "type": "operation",
+            "feeds": ["A", "B"],
+            "operation": "join_timestamp_value"
+        },
+        "E": {
+            "type": "operation",
+            "feeds": ["D", "C"],
+            "operation": "join_timestamp_value"
+        },
+        "F": {
+            "type": "operation",
+            "feeds": ["E"],
+            "operation": "filter_value",
+            "parameters": {
+                "column": "value",
+                "filter": "gte",
+                "value": 40000,
+                "type": "int16"
+            }
+        }
+    }
+}
