@@ -8,7 +8,7 @@ use polars::{error::ErrString, prelude::*};
 
 use crate::logger_elapsed;
 use crate::operations::join::join_timestamp_value;
-use crate::operations::filters::filter_value;
+use crate::operations::filters::filter_value::filter_value;
 use crate::utils::read_config_file;
 
 #[allow(unused)]
@@ -34,7 +34,7 @@ pub fn correlate_columns(
     lf: LazyFrame,
     columns: &Vec<String>,
 ) -> LazyFrame {
-    let mut aggs: Vec<Expr> = vec![];
+    let mut aggs: Vec<Expr> = Vec::with_capacity(columns.len()^2);
 
     for column in columns.iter() {
         for column_2 in columns.iter() {

@@ -9,6 +9,8 @@ RUN adduser \
     --uid 10001 \
     "iowa"
 
+RUN apt-get update && apt-get install make
+
 RUN --mount=type=bind,source=/src,target=./src \
     --mount=type=bind,source=/Cargo.toml,target=./Cargo.toml \
     --mount=type=bind,source=/Cargo.lock,target=./Cargo.lock \
