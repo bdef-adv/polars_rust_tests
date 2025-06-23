@@ -9,7 +9,7 @@ mod filters;
 mod fs;
 mod io;
 
-use services::api::{display_feed,download_feed};
+use services::api::{display_feed,download_feed,new_temp_feed};
 
 #[cfg(not(target_env = "msvc"))]
 use tikv_jemallocator::Jemalloc;
@@ -27,6 +27,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .service(display_feed)
             .service(download_feed)
+            .service(new_temp_feed)
     })
     .bind(("0.0.0.0".to_string(), 3000))?
     .run()

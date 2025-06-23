@@ -59,6 +59,7 @@ impl FeedParameters {
                 "origin".into(),
                 Value::from(origin)
             );
+            println!("Filters: {:?}", self.filters.clone().unwrap());
             params.insert(
                 "filters".into(),
                 Value::from(

@@ -3,7 +3,6 @@ pub(crate) mod parameters;
 use std::time::Instant;
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
 use serde_json::{Value,Map};
 
 use polars::{error::ErrString, prelude::*};
@@ -113,7 +112,7 @@ pub fn new_temporary_feed(
     feed_name: &String,
     params: &FeedParameters
 ) -> Result<LazyFrame, Box<dyn std::error::Error>> {
-    const LOG_HEADER: &str = "data::get_feed";
+    const LOG_HEADER: &str = "data::new_temporary_feed";
 
     let timer = Instant::now();
 
