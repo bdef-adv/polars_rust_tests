@@ -4,7 +4,8 @@ use actix_web::http::header::ContentType;
 use actix_web::{get, web, HttpResponse, Responder};
 
 use crate::logger_elapsed;
-use crate::data::{get_feed,lazyframe_as_str,lazyframe_as_arrowbytes};
+use crate::data::get_feed;
+use crate::io::lazyframe::{lazyframe_as_str,lazyframe_as_arrowbytes};
 
 
 #[get("/feeds/{feed_name}/display")]

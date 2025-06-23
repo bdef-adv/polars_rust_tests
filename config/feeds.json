@@ -19,13 +19,30 @@
             "type": "operation",
             "feed_left": "A",
             "feed_right": "B",
-            "operation": "join_timestamp_value"
+            "operation": "join",
+            "parameters": {
+                "left_on": "timestamp",
+                "right_on": "timestamp",
+                "left_by": "value",
+                "right_by": "value",
+                "join_type": "inner",
+                "suffix": "_right",
+                "validation": "manytomany",
+                "join_nulls": false,
+                "coalesce": "join_specific"
+            }
         },
         "E": {
             "type": "operation",
             "feed_left": "D",
             "feed_right": "C",
-            "operation": "join_timestamp_value"
+            "operation": "join",
+            "parameters": {
+                "left_on": "timestamp",
+                "right_on": "timestamp",
+                "left_by": "value",
+                "right_by": "value"
+            }
         },
         "F": {
             "type": "filter",
@@ -38,6 +55,18 @@
                         "filter": "gte",
                         "value": 1500,
                         "type": "int"
+                    }
+                }
+            ]
+        },
+        "G": {
+            "type": "filter",
+            "origin": "F",
+            "filters": [
+                {
+                    "filter_name": "correlation",
+                    "parameters": {
+                        "columns": ["value", "timestamp"]
                     }
                 }
             ]

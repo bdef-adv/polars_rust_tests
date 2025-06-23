@@ -5,6 +5,9 @@ mod utils;
 mod data;
 mod operations;
 mod services;
+mod filters;
+mod fs;
+mod io;
 
 use services::api::{display_feed,download_feed};
 

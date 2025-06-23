@@ -1,4 +1,3 @@
-use std::io::Cursor;
 use std::time::Instant;
 use std::collections::HashMap;
 
@@ -7,26 +6,10 @@ use serde_json::{Value,Map};
 use polars::{error::ErrString, prelude::*};
 
 use crate::logger_elapsed;
-use crate::operations::join::join_timestamp_value;
-use crate::operations::filters::filter_value::filter_value;
+use crate::filters::get_feed_from_filters;
+use crate::operations::get_feed_from_operation;
+use crate::fs::get_feed_from_file;
 use crate::utils::read_config_file;
-
-#[allow(unused)]
-pub fn load_lazyframe_from_parquet(
-    path: &str
-) -> Result<LazyFrame, PolarsError> {
-    let args = ScanArgsParquet::default();
-    LazyFrame::scan_parquet(path, args)
-}
-
-
-#[allow(unused)]
-pub fn load_lazyframe_from_ipc(
-    path: &str
-) -> Result<LazyFrame, PolarsError> {
-    let args = ScanArgsIpc::default();
-    Ok(LazyFrame::scan_ipc(path, args)?.with_streaming(true))
-}
 
 
 #[allow(unused)]
@@ -73,131 +56,6 @@ pub fn find_duplicate_values_in_column(
 }
 
 
-#[allow(unused)]
-pub fn display_lazyframe(
-    lf: LazyFrame
-) -> Result<bool, PolarsError> {
-    println!("{}", lf.collect()?);
-    Ok(true)
-}
-
-
-#[allow(unused)]
-pub fn lazyframe_as_str(
-    lf: LazyFrame
-) -> Result<String, PolarsError> {
-    Ok(format!("{}\n", lf.collect()?))
-}
-
-
-#[allow(unused)]
-pub fn lazyframe_as_arrowbytes(lf: LazyFrame) -> PolarsResult<Vec<u8>> {
-    let mut buffer = Vec::new();
-    let mut cursor = Cursor::new(&mut buffer);
-
-    let mut df: DataFrame = lf.collect()?;
-
-    IpcWriter::new(&mut cursor)
-        .finish(&mut df)?;
-
-    Ok(buffer)
-}
-
-
-fn get_feed_from_filters(
-    origin_feed: LazyFrame,
-    filters: &Vec<Value>,
-) -> Result<LazyFrame, Box<dyn std::error::Error>> {
-    const LOG_HEADER: &str = "data::get_feed_from_filters";
-    println!("{LOG_HEADER} Fetching feed from filters={filters:?}");
-
-    let mut filtered_lf: LazyFrame = origin_feed.clone();
-
-    for _filter in filters.iter() {
-        let filter_obj: &Map<String, Value> = _filter.as_object().unwrap();
-        let filter_name = filter_obj.get("filter_name").expect("filter_name must be given").as_str().unwrap();
-
-        match filter_name {
-            "filter_value" => {
-                let parameters = filter_obj
-                    .get("parameters")
-                    .expect("parameters is expected for operation 'filter_value'")
-                    .as_object()
-                    .expect("parameters must be an object");
-
-                let column: String = parameters.get("column")
-                    .expect("column is expected for filter_value parameters")
-                    .as_str()
-                    .unwrap()
-                    .to_owned();
-
-                let filter: String = parameters.get("filter")
-                    .expect("filter is expected for filter_value parameters")
-                    .as_str()
-                    .unwrap()
-                    .to_owned();
-
-                let value: &Value = parameters.get("value")
-                    .expect("value is expected for filter_value parameters");
-
-                let r#type: String = parameters.get("type")
-                    .expect("type is expected for filter_value parameters")
-                    .as_str()
-                    .unwrap()
-                    .to_owned();
-
-                filtered_lf = filter_value(filtered_lf, &column, &filter, value, &r#type)?
-            },
-            _ => {
-                return Err(Box::new(PolarsError::InvalidOperation(ErrString::new_static("Operation is unknown"))))
-            }
-        }
-    }
-
-    Ok(filtered_lf)
-}
-
-
-fn get_feed_from_file(
-    format: &str,
-    source: &str
-) -> Result<LazyFrame, Box<dyn std::error::Error>> {
-    const LOG_HEADER: &str = "data::get_feed_from_file";
-    println!("{LOG_HEADER} Fetching feed from file with format={format} and source={source}");
-
-    match format {
-        "parquet" => {
-            return Ok(load_lazyframe_from_parquet(source)?)
-        },
-        "ipc" => {
-            return Ok(load_lazyframe_from_ipc(source)?)
-        },
-        _ => {
-            return Err(Box::new(PolarsError::InvalidOperation(ErrString::new_static("Format unrecognized"))))
-        }
-    }
-}
-
-
-fn get_feed_from_operation(
-    feed_left: LazyFrame,
-    feed_right: LazyFrame,
-    operation: &str
-) -> Result<LazyFrame, Box<dyn std::error::Error>> {
-    const LOG_HEADER: &str = "data::get_feed_from_operation";
-    println!("{LOG_HEADER} Fetching feed from operation={operation}");
-
-    match operation {
-        "join_timestamp_value" => {
-            return Ok(join_timestamp_value(feed_left, feed_right))
-        },
-        _ => {
-            return Err(Box::new(PolarsError::InvalidOperation(ErrString::new_static("Operation is unknown"))))
-        }
-    }
-}
-
-
 fn get_feed_from_config(
     feed_name: &String,
     all_feeds: &Map<String, Value>
@@ -229,7 +87,9 @@ fn get_feed_from_config(
                 all_feeds
             )?;
 
-            return get_feed_from_operation(feed_left, feed_right, operation);
+            let parameters = feed_definition.get("parameters").unwrap_or(&Value::Null).to_owned();
+
+            return get_feed_from_operation(feed_left, feed_right, operation, &parameters);
         },
         "filter" => {
             println!("{LOG_HEADER} Fetching feed {feed_name} from filter");
