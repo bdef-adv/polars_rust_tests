@@ -1,6 +1,9 @@
+pub(crate) mod parameters;
+
 use std::time::Instant;
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
 use serde_json::{Value,Map};
 
 use polars::{error::ErrString, prelude::*};
@@ -10,50 +13,7 @@ use crate::filters::get_feed_from_filters;
 use crate::operations::get_feed_from_operation;
 use crate::fs::get_feed_from_file;
 use crate::utils::read_config_file;
-
-
-#[allow(unused)]
-pub fn correlate_columns(
-    lf: LazyFrame,
-    columns: &Vec<String>,
-) -> LazyFrame {
-    let mut aggs: Vec<Expr> = Vec::with_capacity(columns.len()^2);
-
-    for column in columns.iter() {
-        for column_2 in columns.iter() {
-            aggs.push(
-                spearman_rank_corr(
-                    col(column),
-                    col(column_2),
-                    1,
-                    false
-                )
-                .alias(format!("{column}X{column_2}"))
-            );
-        }
-    }
-
-    return lf.select(aggs)
-}
-
-
-#[allow(unused)]
-pub fn find_duplicate_values_in_column(
-    lf: LazyFrame,
-    column: &str
-) -> LazyFrame {
-    lf
-        .group_by([col(column)])
-        .agg([len().alias("count")])
-        .filter(col("count").gt(1))
-        .select([col(column), col("count")])
-        .sort(vec!["count"], SortMultipleOptions {
-            descending: vec![true],
-            nulls_last: vec![true],
-            multithreaded: true,
-            maintain_order: true
-        })
-}
+use parameters::FeedParameters;
 
 
 fn get_feed_from_config(
@@ -136,6 +96,57 @@ pub fn get_feed(
     }
 
     match get_feed_from_config(feed_name, all_feeds) {
+        Ok(lf) => {
+            return Ok(lf)
+        },
+        Err(err) => {
+            return Err(err)
+        }
+    }
+
+    return Err(Box::new(PolarsError::NoData(ErrString::new_static("Feed was not found in configuration"))));
+}
+
+
+#[allow(unused)]
+pub fn new_temporary_feed(
+    feed_name: &String,
+    params: &FeedParameters
+) -> Result<LazyFrame, Box<dyn std::error::Error>> {
+    const LOG_HEADER: &str = "data::get_feed";
+
+    let timer = Instant::now();
+
+    let feeds_config_path: String = "config/feeds.json".to_string();
+
+    logger_elapsed!(timer, "{LOG_HEADER} Fetching feed {feed_name} from config {feeds_config_path}");
+
+    let feeds_config_content: String = read_config_file(feeds_config_path.as_str())
+                                            .expect("Could not read feeds config file");
+    let feeds_config_map: HashMap<String, Value> = serde_json::from_str(&feeds_config_content)
+                                                .expect("Could not load feeds config file into HashMap");
+
+    let mut all_feeds: Map<String, Value> = feeds_config_map
+        .get("feeds")
+        .expect("feeds config file does not contain the \"feeds\" key")
+        .as_object()
+        .expect("feeds needs to be an object")
+        .to_owned();
+
+    all_feeds.insert(
+        feed_name.to_owned(),
+        Value::from(
+            params.as_map()
+        )
+    );
+
+    logger_elapsed!(timer, "All feeds: {all_feeds:?}");
+
+    if !all_feeds.contains_key(feed_name) {
+        return Err(Box::new(PolarsError::NoData(ErrString::new_static("Feed was not found in configuration"))));
+    }
+
+    match get_feed_from_config(feed_name, &all_feeds) {
         Ok(lf) => {
             return Ok(lf)
         },

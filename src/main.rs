@@ -2,7 +2,7 @@ use actix_web::{App, HttpServer};
 use actix_cors::Cors;
 
 mod utils;
-mod data;
+mod feed;
 mod operations;
 mod services;
 mod filters;
