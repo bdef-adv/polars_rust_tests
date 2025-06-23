@@ -70,6 +70,18 @@
                     }
                 }
             ]
+        },
+        "H": {
+            "type": "filter",
+            "origin": "A",
+            "filters": [
+                {
+                    "filter_name": "duplicate_values",
+                    "parameters": {
+                        "column": "value"
+                    }
+                }
+            ]
         }
     }
 }
