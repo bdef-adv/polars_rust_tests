@@ -1,7 +1,10 @@
 pub(crate) mod filter_value;
+pub(crate) mod correlation;
+pub(crate) mod duplicate_values;
 
-use crate::data::correlate_columns;
+use correlation::correlate_columns;
 use filter_value::filter_value;
+use duplicate_values::find_duplicate_values_in_column;
 
 use polars::prelude::*;
 use polars::error::ErrString;
@@ -60,7 +63,7 @@ pub fn get_feed_from_filters(
                     .expect("parameters must be an object");
 
                 let columns: Vec<String> = parameters.get("columns")
-                    .expect("column is expected for filter_value parameters")
+                    .expect("columns is expected for filter_value parameters")
                     .as_array()
                     .unwrap()
                     .to_owned()
@@ -69,6 +72,20 @@ pub fn get_feed_from_filters(
                     .collect();
 
                 filtered_lf = correlate_columns(filtered_lf, &columns);
+            },
+            "duplicate_values" => {
+                let parameters = filter_obj
+                    .get("parameters")
+                    .expect("parameters is expected for operation 'filter_value'")
+                    .as_object()
+                    .expect("parameters must be an object");
+
+                let column: &str = parameters.get("column")
+                    .expect("column is expected for filter_value parameters")
+                    .as_str()
+                    .unwrap();
+
+                filtered_lf = find_duplicate_values_in_column(filtered_lf, &column);
             },
             _ => {
                 return Err(Box::new(PolarsError::InvalidOperation(ErrString::new_static("Operation is unknown"))))
